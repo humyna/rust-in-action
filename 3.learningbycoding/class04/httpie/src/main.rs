@@ -1,3 +1,5 @@
+use anyhow::Result;
+use reqwest::Url;
 use clap::{AppSettings, Clap};
 
 //定义httpie的CLI主入口，它包含若干子命令
@@ -20,7 +22,13 @@ enum SubCommand {
 
 #[derive(Clap, Debug)]
 struct Get {
+    #[clap(parse(try_from_str = parse_url))]
     url : String,
+}
+
+fn parse_url(s: &str) -> Result<String> {
+    let _url: Url = s.parse()?;
+    Ok(s.into())
 }
 
 #[derive(Clap, Debug)]
