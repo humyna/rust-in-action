@@ -1,12 +1,14 @@
 use anyhow::{anyhow, Result};
-use reqwest::{ Client, Url};
+use reqwest::{ header, Client, Response, Url};
 use clap::{AppSettings, Clap};
 use std::{collections::HashMap, str::FromStr};
+use colored::*;
+use mime::Mime;
 
 
 //定义httpie的CLI主入口，它包含若干子命令
 // 下面/// 注释是文档, clap会将其作为CLI的帮助
-/// a native httpie implmentation with Rust
+/// a native httpie implmentation with Rust.
 #[derive(Clap, Debug)]
 #[clap(version = "1.0", author = "humyna")]
 #[clap(setting = AppSettings::ColoredHelp)]
@@ -83,8 +85,7 @@ fn parse_kv_pair(s: &str) -> Result<KvPair> {
 /// 处理get子命令
 async fn get(client: Client, args: &Get) -> Result<()> {
     let resp = client.get(&args.url).send().await?;
-    println!("{:?}", resp.text().await?);
-    Ok(())
+    Ok(print_resp(resp).await?)
 }
 
 /// 处理post子命令
@@ -94,19 +95,63 @@ async fn post(client: Client, args: &Post) -> Result<()> {
         body.insert(&pair.k, &pair.v);
     }
     let resp = client.post(&args.url).json(&body).send().await?;
-    println!("{:?}", resp.text().await?);
+    Ok(print_resp(resp).await?)
+}
 
+/// 打印响应
+async fn print_resp(resp: Response) -> Result<()> {
+    print_status(&resp);
+    print_headers(&resp);
+    let mime = get_context_type(&resp);
+    let body = resp.text().await?;
+    print_body(mime, &body);
     Ok(())
 }
 
+// 打印服务器版本号和状态码
+fn print_status(resp: &Response) {
+    let status = format!("{:?} {}", resp.version(), resp.status()).blue();
+    println!("{}\n", status);
+}
+
+// 打印服务器返回的 HTTP headers
+fn print_headers(resp: &Response) {
+    for (name, value) in resp.headers() {
+        println!("{} {:?}", name.to_string().green(), value);
+    }
+
+    print!("\n");
+}
+
+/// 将服务器返回的context-type解析成Mime类型
+fn get_context_type(resp: &Response) -> Option<Mime> {
+    resp.headers().get(header::CONTENT_TYPE)
+        .map(|v| v.to_str().unwrap().parse().unwrap())
+}
+
+// 打印服务器返回的 HTTP body
+fn print_body(m: Option<Mime>, body: &String) {
+    match m {
+        // 对于”applcation/json“进行pretty print
+        Some(v) if v == mime:: APPLICATION_JSON => {
+            println!("{}", jsonxf::pretty_print(body).unwrap().cyan());
+        }
+        //其他mime type直接输出
+        _ => println!("{}", body),
+    }
+}
 // 使用 #[tokio::main] 宏来自动添加处理异步的运行时
 #[tokio::main]
 async fn main() -> Result<()> {
     let opts: Opts= Opts::parse();
-    println!("{:?}", opts);
+    //println!("{:?}", opts);
+    //为http客户端添加一些缺省头
+    let mut headers = header::HeaderMap::new();
+    headers.insert("X-POWERED-BY","Rust".parse()?);
+    headers.insert(header::USER_AGENT, "Rust Httpie".parse()?);
 
     //生成一个http客户端
-    let client = Client::new();
+    let  client = reqwest::Client::builder().default_headers(headers).build()?;   
     let result = match opts.subcmd {
         SubCommand::Get(ref args) => get(client, args).await?,
         SubCommand::Post(ref args) => post(client, args).await?,
