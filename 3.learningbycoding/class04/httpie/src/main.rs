@@ -1,11 +1,12 @@
 use anyhow::{anyhow, Result};
-use reqwest::Url;
+use reqwest::{ Client, Url};
 use clap::{AppSettings, Clap};
-use std::str::FromStr;
+use std::{collections::HashMap, str::FromStr};
 
 
 //定义httpie的CLI主入口，它包含若干子命令
 // 下面/// 注释是文档, clap会将其作为CLI的帮助
+/// a native httpie implmentation with Rust
 #[derive(Clap, Debug)]
 #[clap(version = "1.0", author = "humyna")]
 #[clap(setting = AppSettings::ColoredHelp)]
@@ -22,17 +23,23 @@ enum SubCommand {
     //暂不支持其他http方法
 }
 
+// get子命令
+/// feed get with the url and we will retrieve the response for you 
 #[derive(Clap, Debug)]
 struct Get {
+    /// HTTP 请求的 URL
     #[clap(parse(try_from_str = parse_url))]
     url : String,
 }
 
+/// 检查url是否合法
 fn parse_url(s: &str) -> Result<String> {
     let _url: Url = s.parse()?;
     Ok(s.into())
 }
 
+// post子命令。 需要输入一个URL，和若干个可选的key = value,用于提供json body
+/// feed post with the url and optional key=value pairs. we will post the data s JSON, and retrieve the response for you 
 #[derive(Clap, Debug)]
 struct Post {
     /// HTTP 请求的 URL
@@ -73,8 +80,37 @@ fn parse_kv_pair(s: &str) -> Result<KvPair> {
     Ok(s.parse()?)
 }
 
+/// 处理get子命令
+async fn get(client: Client, args: &Get) -> Result<()> {
+    let resp = client.get(&args.url).send().await?;
+    println!("{:?}", resp.text().await?);
+    Ok(())
+}
 
-fn main() {
+/// 处理post子命令
+async fn post(client: Client, args: &Post) -> Result<()> {
+    let mut body = HashMap::new();
+    for pair in args.body.iter() {
+        body.insert(&pair.k, &pair.v);
+    }
+    let resp = client.post(&args.url).json(&body).send().await?;
+    println!("{:?}", resp.text().await?);
+
+    Ok(())
+}
+
+// 使用 #[tokio::main] 宏来自动添加处理异步的运行时
+#[tokio::main]
+async fn main() -> Result<()> {
     let opts: Opts= Opts::parse();
     println!("{:?}", opts);
+
+    //生成一个http客户端
+    let client = Client::new();
+    let result = match opts.subcmd {
+        SubCommand::Get(ref args) => get(client, args).await?,
+        SubCommand::Post(ref args) => post(client, args).await?,
+    };
+
+    Ok(result)
 }
