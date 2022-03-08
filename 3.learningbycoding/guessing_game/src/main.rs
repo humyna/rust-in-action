@@ -27,10 +27,10 @@ fn main() {
         println!("You guessed: {}", guess);
 
         match guess.cmp( &secret_number ) {
-            Ordering::Less => println!("Too small!"),
-            Ordering::Greater => println!("Too big!"),
+            Ordering::Less => println!("太小了"),
+            Ordering::Greater => println!("太大了!"),
             Ordering::Equal => {
-                println!("You win!");
+                println!("你赢了!");
                 break;
             }
         }
