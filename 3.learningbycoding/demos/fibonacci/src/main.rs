@@ -11,6 +11,7 @@ fn main() {
         println!("Please input a number to generate fibonacci sequence");
         let mut input = String::new();
 
+        
         io::stdin().read_line(&mut input).expect("Failed to read line");
         
         if input.trim() == "Q" {
@@ -24,13 +25,16 @@ fn main() {
                 continue;
             }
         };
-        
-        println!("number = {}, fibonacci number = {} ", input,  print_fibonacci_array(input));
 
         let start = Instant::now();
-        generate_fibonacci(input);
+        println!("number = {}, fibonacci number = {} ", input,  print_fibonacci_array(input));
         let duration = start.elapsed();
-        println!("generate_fibonacci duration:{:?}",duration);
+        println!("print_fibonacci_array duration:{:?}",duration);
+
+        let start1 = Instant::now();
+        generate_fibonacci(input);
+        let duration1 = start1.elapsed();
+        println!("generate_fibonacci duration:{:?}",duration1);
     }
 }
 
