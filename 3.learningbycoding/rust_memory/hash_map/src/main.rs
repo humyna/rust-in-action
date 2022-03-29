@@ -69,6 +69,6 @@ fn explain<K, V>(name: &str, map: &HashMap<K, V>) {
 fn explain_mem<K, V>(name: &str, map: HashMap<K, V>) -> HashMap<K, V>{
     // println!("{}:len:{},cap:{}", name, map.len(),map.capacity());
     let arr: [usize; 6] = unsafe { std::mem::transmute(map)} ;
-    println!("{}: bucket_mask ox{:x}, ctel ox{:x}, growth_left:{}, items:{}", name, arr[2],arr[3], arr[4], arr[5]);
+    println!("{}: bucket_mask ox{:x}, ctrl ox{:x}, growth_left:{}, items:{}", name, arr[2],arr[3], arr[4], arr[5]);
     unsafe { std::mem:: transmute(arr) }
 }
